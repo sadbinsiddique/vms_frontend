@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../core/constants/app_colors.dart';
 
 /// Operational status of a vehicle.
@@ -42,6 +42,31 @@ enum VehicleStatus {
         return Icons.error_outline;
     }
   }
+
+  static VehicleStatus fromJson(String value) {
+    switch (value.toLowerCase().replaceAll('-', '_')) {
+      case 'in_maintenance':
+      case 'inmaintenance':
+        return VehicleStatus.inMaintenance;
+      case 'out_of_service':
+      case 'outofservice':
+        return VehicleStatus.outOfService;
+      case 'active':
+      default:
+        return VehicleStatus.active;
+    }
+  }
+
+  String toJson() {
+    switch (this) {
+      case VehicleStatus.active:
+        return 'active';
+      case VehicleStatus.inMaintenance:
+        return 'in_maintenance';
+      case VehicleStatus.outOfService:
+        return 'out_of_service';
+    }
+  }
 }
 
 /// Category / Body style of a vehicle.
@@ -56,6 +81,67 @@ enum VehicleType {
   final String label;
   final IconData icon;
   const VehicleType(this.label, this.icon);
+
+  static VehicleType fromJson(String value) {
+    switch (value.toLowerCase().replaceAll('-', '_')) {
+      case 'suv':
+        return VehicleType.suv;
+      case 'truck':
+        return VehicleType.truck;
+      case 'van':
+        return VehicleType.van;
+      case 'bus':
+        return VehicleType.bus;
+      case 'electric':
+      case 'ev':
+        return VehicleType.electric;
+      case 'sedan':
+      default:
+        return VehicleType.sedan;
+    }
+  }
+
+  String toJson() {
+    switch (this) {
+      case VehicleType.electric:
+        return 'electric';
+      default:
+        return name;
+    }
+  }
+}
+
+/// Key Performance Indicator (KPI) metrics from backend /vehicles/stats.
+class VehicleStats {
+  final int totalCount;
+  final int activeCount;
+  final int maintenanceCount;
+  final int outOfServiceCount;
+
+  const VehicleStats({
+    this.totalCount = 0,
+    this.activeCount = 0,
+    this.maintenanceCount = 0,
+    this.outOfServiceCount = 0,
+  });
+
+  factory VehicleStats.fromJson(Map<String, dynamic> json) {
+    return VehicleStats(
+      totalCount: (json['totalCount'] ?? json['total_count'] ?? 0) as int,
+      activeCount: (json['activeCount'] ?? json['active_count'] ?? 0) as int,
+      maintenanceCount: (json['maintenanceCount'] ?? json['maintenance_count'] ?? 0) as int,
+      outOfServiceCount: (json['outOfServiceCount'] ?? json['out_of_service_count'] ?? 0) as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalCount': totalCount,
+      'activeCount': activeCount,
+      'maintenanceCount': maintenanceCount,
+      'outOfServiceCount': outOfServiceCount,
+    };
+  }
 }
 
 /// Core domain model representing a fleet vehicle.
@@ -89,6 +175,48 @@ class Vehicle {
     this.lastServiceDate,
     this.notes,
   });
+
+  factory Vehicle.fromJson(Map<String, dynamic> json) {
+    return Vehicle(
+      id: json['id']?.toString() ?? '',
+      plateNumber: json['plateNumber']?.toString() ?? json['plate_number']?.toString() ?? '',
+      vin: json['vin']?.toString() ?? '',
+      make: json['make']?.toString() ?? '',
+      model: json['model']?.toString() ?? '',
+      year: (json['year'] as num?)?.toInt() ?? DateTime.now().year,
+      type: VehicleType.fromJson(json['type']?.toString() ?? 'sedan'),
+      status: VehicleStatus.fromJson(json['status']?.toString() ?? 'active'),
+      mileage: (json['mileage'] as num?)?.toInt() ?? 0,
+      fuelType: json['fuelType']?.toString() ?? json['fuel_type']?.toString() ?? 'Gasoline',
+      assignedDriver: json['assignedDriver']?.toString() ?? json['assigned_driver']?.toString(),
+      lastServiceDate: json['lastServiceDate'] != null
+          ? DateTime.tryParse(json['lastServiceDate'].toString())
+          : (json['last_service_date'] != null
+              ? DateTime.tryParse(json['last_service_date'].toString())
+              : null),
+      notes: json['notes']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'plateNumber': plateNumber,
+      'vin': vin,
+      'make': make,
+      'model': model,
+      'year': year,
+      'type': type.toJson(),
+      'status': status.toJson(),
+      'mileage': mileage,
+      'fuelType': fuelType,
+      if (assignedDriver != null) 'assignedDriver': assignedDriver,
+      if (lastServiceDate != null)
+        'lastServiceDate':
+            '${lastServiceDate!.year.toString().padLeft(4, '0')}-${lastServiceDate!.month.toString().padLeft(2, '0')}-${lastServiceDate!.day.toString().padLeft(2, '0')}',
+      if (notes != null) 'notes': notes,
+    };
+  }
 
   /// Formatted title (e.g., "2023 Toyota Camry")
   String get displayName => '$year $make $model';
@@ -147,4 +275,3 @@ class Vehicle {
     );
   }
 }
-

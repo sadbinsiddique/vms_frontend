@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../models/vehicle_model.dart';
 
 /// Reusable status badge displaying the current operational state of a vehicle.

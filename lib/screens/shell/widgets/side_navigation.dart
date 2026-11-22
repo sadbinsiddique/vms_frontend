@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/storage/hive_service.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/confirmation_dialog.dart';
 
@@ -80,10 +82,13 @@ class SideNavigation extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        AppRoutes.login,
-        (route) => false,
-      );
+      await AuthService().logout();
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -287,61 +292,64 @@ class SideNavigation extends StatelessWidget {
                 top: BorderSide(color: Color(0xFF1E293B), width: 1),
               ),
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    UserModel.mockAdmin.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .take(2)
-                        .join(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (!isCollapsed) ...[
-                  const SizedBox(width: AppConstants.spacingSm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          UserModel.mockAdmin.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+            child: Builder(
+              builder: (context) {
+                final currentUser = HiveService.instance.getUser() ?? UserModel.mockAdmin;
+                final initials = currentUser.name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join();
+
+                return Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.primary,
+                      child: Text(
+                        initials.isNotEmpty ? initials : 'U',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
-                        Text(
-                          UserModel.mockAdmin.role,
-                          style: const TextStyle(
-                            color: AppColors.sidebarText,
-                            fontSize: 11,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!isCollapsed) ...[
+                      const SizedBox(width: AppConstants.spacingSm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentUser.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              currentUser.role,
+                              style: const TextStyle(
+                                color: AppColors.sidebarText,
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.logout,
-                      color: AppColors.sidebarText,
-                      size: 18,
-                    ),
-                    tooltip: 'Sign Out',
-                    onPressed: () => _handleLogout(context),
-                  ),
-                ],
-              ],
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.logout,
+                          color: AppColors.sidebarText,
+                          size: 18,
+                        ),
+                        tooltip: 'Sign Out',
+                        onPressed: () => _handleLogout(context),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ],

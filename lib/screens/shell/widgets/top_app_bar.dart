@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/storage/hive_service.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/confirmation_dialog.dart';
 
@@ -151,100 +153,118 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: AppConstants.spacingSm),
 
           // User Profile Quick Actions
-          PopupMenuButton<String>(
-            tooltip: 'Profile actions',
-            offset: const Offset(0, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.primaryLight,
-                  child: const Text(
-                    'SC',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+          Builder(
+            builder: (context) {
+              final currentUser = HiveService.instance.getUser() ?? UserModel.mockAdmin;
+              final initials = currentUser.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+
+              return PopupMenuButton<String>(
+                tooltip: 'Profile actions',
+                offset: const Offset(0, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                 ),
-                if (isDesktop) ...[
-                  const SizedBox(width: AppConstants.spacingSm),
-                  Text(
-                    UserModel.mockAdmin.name,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: AppColors.textSecondary,
-                    size: 18,
-                  ),
-                ],
-              ],
-            ),
-            onSelected: (value) async {
-              if (value == 'logout') {
-                final confirmed = await ConfirmationDialog.show(
-                  context,
-                  title: 'Sign Out',
-                  message: 'Are you sure you want to log out?',
-                  confirmLabel: 'Sign Out',
-                  confirmColor: AppColors.error,
-                  icon: Icons.logout,
-                );
-                if (confirmed == true && context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    AppRoutes.login,
-                    (route) => false,
-                  );
-                }
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                enabled: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      UserModel.mockAdmin.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      UserModel.mockAdmin.email,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout, size: 18, color: AppColors.error),
-                    SizedBox(width: 8),
-                    Text(
-                      'Sign Out',
-                      style: TextStyle(color: AppColors.error),
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primaryLight,
+                      child: Text(
+                        initials.isNotEmpty ? initials : 'U',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
+                    if (isDesktop) ...[
+                      const SizedBox(width: AppConstants.spacingSm),
+                      Text(
+                        currentUser.name,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppColors.textSecondary,
+                        size: 18,
+                      ),
+                    ],
                   ],
                 ),
-              ),
-            ],
+                onSelected: (value) async {
+                  if (value == 'logout') {
+                    final confirmed = await ConfirmationDialog.show(
+                      context,
+                      title: 'Sign Out',
+                      message: 'Are you sure you want to log out?',
+                      confirmLabel: 'Sign Out',
+                      confirmColor: AppColors.error,
+                      icon: Icons.logout,
+                    );
+                    if (confirmed == true && context.mounted) {
+                      await AuthService().logout();
+                      if (context.mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          AppRoutes.login,
+                          (route) => false,
+                        );
+                      }
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    enabled: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          currentUser.email,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          currentUser.role,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, size: 18, color: AppColors.error),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sign Out',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

@@ -1,24 +1,26 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'core/constants/app_constants.dart';
 import 'core/routes/app_routes.dart';
+import 'core/storage/hive_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/vehicle_repository.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.init();
   runApp(const VmsApp());
 }
 
 /// Root widget for the Vehicle Management System frontend application.
 class VmsApp extends StatefulWidget {
-  const VmsApp({super.key}); 
+  const VmsApp({super.key});
 
   @override
   State<VmsApp> createState() => _VmsAppState();
 }
 
 class _VmsAppState extends State<VmsApp> {
-  // In-memory vehicle repository holding mock state for the frontend foundation.
+  // Vehicle repository bound to backend REST APIs.
   late final VehicleRepository _vehicleRepository;
 
   @override

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/routes/app_routes.dart';
@@ -22,6 +22,16 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
   final TextEditingController _searchController = TextEditingController();
   VehicleStatus? _selectedStatus;
   VehicleType? _selectedType;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        VehicleRepositoryScope.of(context).loadData();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -49,18 +59,30 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
     );
 
     if (confirmed == true && context.mounted) {
-      VehicleRepositoryScope.of(context).deleteVehicle(vehicle.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${vehicle.displayName} has been removed.'),
-          backgroundColor: AppColors.textPrimary,
-          action: SnackBarAction(
-            label: 'Dismiss',
-            textColor: Colors.white,
-            onPressed: () {},
+      try {
+        await VehicleRepositoryScope.of(context).deleteVehicle(vehicle.id);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${vehicle.displayName} has been removed.'),
+            backgroundColor: AppColors.textPrimary,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
           ),
-        ),
-      );
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -84,8 +106,63 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Page Header (Title, Subtitle & Primary CTA)
-              _buildPageHeader(context, isDesktop),
+              _buildPageHeader(context, isDesktop, repository),
               const SizedBox(height: AppConstants.spacingLg),
+
+              if (repository.errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(AppConstants.spacingMd),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight,
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_off, color: AppColors.error, size: 24),
+                      const SizedBox(width: AppConstants.spacingMd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Backend Connection Alert',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.error,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              repository.errorMessage!,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Retry'),
+                        onPressed: () => repository.loadData(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingMd),
+              ],
+
+              if (repository.isLoading) ...[
+                const LinearProgressIndicator(
+                  minHeight: 3,
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.primaryLight,
+                ),
+                const SizedBox(height: AppConstants.spacingMd),
+              ],
 
               // 2. Metric / KPI Stat Cards
               _buildMetricCards(repository, isDesktop),
@@ -111,7 +188,7 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
     );
   }
 
-  Widget _buildPageHeader(BuildContext context, bool isDesktop) {
+  Widget _buildPageHeader(BuildContext context, bool isDesktop, VehicleRepository repository) {
     if (!isDesktop) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -134,12 +211,24 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
             ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Register Vehicle'),
-            onPressed: () {
-              Navigator.of(context).pushNamed(AppRoutes.vehicleNew);
-            },
+          Row(
+            children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh'),
+                onPressed: repository.isLoading ? null : () => repository.loadData(),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Register Vehicle'),
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(AppRoutes.vehicleNew);
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -171,12 +260,22 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
             ),
           ],
         ),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Register Vehicle'),
-          onPressed: () {
-            Navigator.of(context).pushNamed(AppRoutes.vehicleNew);
-          },
+        Row(
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Refresh'),
+              onPressed: repository.isLoading ? null : () => repository.loadData(),
+            ),
+            const SizedBox(width: AppConstants.spacingMd),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Register Vehicle'),
+              onPressed: () {
+                Navigator.of(context).pushNamed(AppRoutes.vehicleNew);
+              },
+            ),
+          ],
         ),
       ],
     );

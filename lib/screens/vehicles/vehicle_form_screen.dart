@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/routes/app_routes.dart';
@@ -21,6 +21,7 @@ class VehicleFormScreen extends StatefulWidget {
 
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
 
   late final TextEditingController _plateController;
   late final TextEditingController _vinController;
@@ -78,16 +79,18 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     super.dispose();
   }
 
-  void _saveVehicle() {
+  Future<void> _saveVehicle() async {
     if (!_formKey.currentState!.validate()) return;
 
     final repo = VehicleRepositoryScope.of(context);
     final isEdit = widget.isEditMode;
 
+    setState(() => _isSaving = true);
+
     final vehicle = Vehicle(
       id: isEdit
           ? widget.vehicle!.id
-          : 'vh-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+          : '',
       plateNumber: _plateController.text.trim().toUpperCase(),
       vin: _vinController.text.trim().toUpperCase(),
       make: _makeController.text.trim(),
@@ -106,24 +109,41 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           : _notesController.text.trim(),
     );
 
-    if (isEdit) {
-      repo.updateVehicle(vehicle);
-    } else {
-      repo.addVehicle(vehicle);
-    }
+    try {
+      if (isEdit) {
+        await repo.updateVehicle(vehicle);
+      } else {
+        await repo.addVehicle(vehicle);
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isEdit
-              ? 'Vehicle "${vehicle.displayName}" updated successfully.'
-              : 'Vehicle "${vehicle.displayName}" registered successfully.',
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Vehicle "${vehicle.displayName}" updated successfully.'
+                : 'Vehicle "${vehicle.displayName}" registered successfully.',
+          ),
+          backgroundColor: AppColors.success,
         ),
-        backgroundColor: AppColors.success,
-      ),
-    );
+      );
 
-    Navigator.of(context).pushReplacementNamed(AppRoutes.vehicles);
+      Navigator.of(context).pushReplacementNamed(AppRoutes.vehicles);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -388,9 +408,21 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                                 hint: 'e.g. ABC-1029',
                                 controller: _plateController,
                                 textCapitalization: TextCapitalization.characters,
-                                validator: (val) => val == null || val.trim().isEmpty
-                                    ? 'License plate is required'
-                                    : null,
+                                validator: (val) {
+                                  if (val == null || val.trim().isEmpty) {
+                                    return 'License plate is required';
+                                  }
+                                  final clean = val.trim().toUpperCase();
+                                  final repo = VehicleRepositoryScope.of(context);
+                                  final duplicate = repo.vehicles.any(
+                                    (v) => v.plateNumber.toUpperCase() == clean &&
+                                        (!widget.isEditMode || v.id != widget.vehicle?.id),
+                                  );
+                                  if (duplicate) {
+                                    return 'Vehicle with this plate number already exists';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(width: AppConstants.spacingMd),
@@ -407,6 +439,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                                   if (val.trim().length < 8) {
                                     return 'VIN must be at least 8 characters';
                                   }
+                                  final clean = val.trim().toUpperCase();
+                                  final repo = VehicleRepositoryScope.of(context);
+                                  final duplicate = repo.vehicles.any(
+                                    (v) => v.vin.toUpperCase() == clean &&
+                                        (!widget.isEditMode || v.id != widget.vehicle?.id),
+                                  );
+                                  if (duplicate) {
+                                    return 'Vehicle with this VIN already exists';
+                                  }
                                   return null;
                                 },
                               ),
@@ -420,9 +461,21 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                               hint: 'e.g. ABC-1029',
                               controller: _plateController,
                               textCapitalization: TextCapitalization.characters,
-                              validator: (val) => val == null || val.trim().isEmpty
-                                  ? 'License plate is required'
-                                  : null,
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'License plate is required';
+                                }
+                                final clean = val.trim().toUpperCase();
+                                final repo = VehicleRepositoryScope.of(context);
+                                final duplicate = repo.vehicles.any(
+                                  (v) => v.plateNumber.toUpperCase() == clean &&
+                                      (!widget.isEditMode || v.id != widget.vehicle?.id),
+                                );
+                                if (duplicate) {
+                                  return 'Vehicle with this plate number already exists';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: AppConstants.spacingMd),
                             _buildTextField(
@@ -436,6 +489,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                                 }
                                 if (val.trim().length < 8) {
                                   return 'VIN must be at least 8 characters';
+                                }
+                                final clean = val.trim().toUpperCase();
+                                final repo = VehicleRepositoryScope.of(context);
+                                final duplicate = repo.vehicles.any(
+                                  (v) => v.vin.toUpperCase() == clean &&
+                                      (!widget.isEditMode || v.id != widget.vehicle?.id),
+                                );
+                                if (duplicate) {
+                                  return 'Vehicle with this VIN already exists';
                                 }
                                 return null;
                               },
@@ -593,13 +655,24 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                         ),
                         const SizedBox(width: AppConstants.spacingMd),
                         ElevatedButton.icon(
-                          icon: const Icon(Icons.check, size: 18),
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.check, size: 18),
                           label: Text(
-                            widget.isEditMode
-                                ? 'Save Changes'
-                                : 'Register Vehicle',
+                            _isSaving
+                                ? 'Saving...'
+                                : (widget.isEditMode
+                                    ? 'Save Changes'
+                                    : 'Register Vehicle'),
                           ),
-                          onPressed: _saveVehicle,
+                          onPressed: _isSaving ? null : _saveVehicle,
                         ),
                       ],
                     ),

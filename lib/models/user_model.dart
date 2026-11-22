@@ -14,12 +14,31 @@ class UserModel {
     this.avatarUrl,
   });
 
-  /// Default mock administrator for foundation/demo purposes.
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      role: json['role']?.toString() ?? 'Fleet Manager',
+      avatarUrl: json['avatarUrl']?.toString() ?? json['avatar_url']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'role': role,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+    };
+  }
+
+  /// Default mock administrator fallback if session is empty.
   static const UserModel mockAdmin = UserModel(
     id: 'usr_admin_001',
-    name: 'Sarah Connor',
+    name: 'Alice Smith',
     email: 'admin@vms.com',
     role: 'Fleet Manager',
   );
 }
-

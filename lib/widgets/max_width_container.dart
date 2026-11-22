@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../core/constants/app_constants.dart';
 
 /// Wraps desktop content to enforce comfortable max-width constraints on ultra-wide screens.

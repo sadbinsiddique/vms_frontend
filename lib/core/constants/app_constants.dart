@@ -4,7 +4,13 @@ class AppConstants {
 
   static const String appName = 'VMS Admin';
   static const String appSubtitle = 'Vehicle Management System';
-  static const String appVersion = 'v1.0.0 (Foundation)';
+  static const String appVersion = 'v1.0.0';
+
+  // API Backend Configuration
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080/api/v1',
+  );
 
   // Responsive Breakpoints
   static const double mobileBreakpoint = 640;
@@ -29,4 +35,3 @@ class AppConstants {
   static const double radiusMd = 10;
   static const double radiusLg = 14;
 }
-
